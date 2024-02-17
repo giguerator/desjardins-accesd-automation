@@ -167,8 +167,8 @@ async function fetchAcountsInformation() {
             description: description,
             amount: amount
         };
-        verbose(accounts[number].name)
-        verbose(accounts[number].amount)
+        verbose(accounts[number].name);
+        verbose(accounts[number].amount);
     }
 
     verbose('Accounts information fetched successfully!');
