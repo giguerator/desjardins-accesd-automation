@@ -27,17 +27,17 @@ let requiredFunds = {};
         await login();
 
         // Make sure that we have the funds available for the upcoming payments
-        await checkForUpcomingPaymentFunds();
+        //await checkForUpcomingPaymentFunds();
 
         // Use spare money that won't be needed for upcoming payments to pay off the credit card
-        await checkForCreditCardPayment();
+        //await checkForCreditCardPayment();
 
         // Move leftover spare money, if any, to the savings account
-        await checkForSavings();
+        //await checkForSavings();
 
         // If there's more than enough money in savings, automatically transfer some to long term savings
         // Whenever this happens, an email will be sent to my finances manager to inform him of the new deposit
-        await checkForLongTermSavingsTransfer();
+        //await checkForLongTermSavingsTransfer();
 
     } catch (e) {
         await endWithError('stack' in e ? e.stack : e);
