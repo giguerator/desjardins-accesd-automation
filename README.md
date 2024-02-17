@@ -1,4 +1,4 @@
-# Desjardins AccèsD Automation
+# Desjardins AccèsD Automation - version Benjamin
 
 This is a simple Node.js script that uses Puppeteer to automatically handle payments, money transfers and savings via your Desjardins AccesD account.
 
