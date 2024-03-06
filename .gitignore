@@ -1,3 +1,4 @@
 node_modules
 node_modules/*
 account.json
+test.js

@@ -4,8 +4,13 @@
 */
 
 const accountInfo = require('./account.json');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
 const args = require('minimist')(process.argv.slice(2))
+const prompt = require("prompt-sync")();
+ 
+// Add stealth plugin and use defaults 
+const pluginStealth = require('puppeteer-extra-plugin-stealth') 
+const twoFAMode = 'Question'
 
 let verboseMode = typeof args.v != 'undefined';
 let extraVerboseMode = typeof args.vv != 'undefined';
@@ -13,16 +18,51 @@ let status = 'Just started';
 let browser, page;
 let accounts = {};
 let requiredFunds = {};
+puppeteer.use(pluginStealth());
 
-(async () => {
-    browser = await puppeteer.launch({ headless: true });
+function delay(time) {
+    return new Promise(function(resolve) { 
+        setTimeout(resolve, time)
+    });
+ }
+
+//(async () => {
+async function mainFo(){
+    const browser = await puppeteer.launch({
+        args: ['--user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'],
+        headless: true,
+        });
     page = await browser.newPage();
-    await page.setExtraHTTPHeaders({ DNT: "1" });
-    await page.setViewport({ width: 1920, height: 1080 });
+
+    //await page.setExtraHTTPHeaders({ DNT: "1" });
+    await page.setExtraHTTPHeaders({ 
+		//'user-agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36', 
+		//'upgrade-insecure-requests': '1', 
+		'DNT': '1',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8', 
+		'accept-encoding': 'gzip, deflate, br', 
+		'accept-language': 'fr-CA,fr;q=0.9,en;q=0.8' 
+	}); 
+    await page.setRequestInterception(true); 
+	page.on('request', async (request) => { 
+		if (request.resourceType() == 'image') { 
+			await request.abort(); 
+		} else { 
+			await request.continue(); 
+		} 
+	}); 
+    await page.setViewport({ width: 1400, height: 700 });
 
     try {
-        await page.goto('https://accweb.mouv.desjardins.com/identifiantunique/identification?domaineVirtuel=desjardins&langueCible=fr', { waitUntil: "networkidle0", timeout: 30000 });
+        await page.goto('http://accweb.mouv.desjardins.com/', { waitUntil: "networkidle0", timeout: 30000 });
 
+        //Manage cookies prompt
+        await handleCookiesPrompt();
+
+        //get cookies
+        const cookiesDesjardins = await page.cookies();
+        //verbose(JSON.stringify(cookiesDesjardins));
+        await page.setCookie(...cookiesDesjardins);
         // First, log into the user's account
         await login();
 
@@ -44,16 +84,30 @@ let requiredFunds = {};
     }
 
     await browser.close();
-})();
+//})();
+}
+
+async function handleCookiesPrompt() {
+    const [acceptCookiesButton] = await page.$x("//button[contains(., 'Tout accepter')]");
+
+    if (acceptCookiesButton) {
+        verbose('Requested to set cookie preferences.');
+ 
+        await acceptCookiesButton.click()
+    }
+
+    return;
+    
+}
 
 async function login() {
     await handleInitialLogin();
-
+    
     // If there's a security question, answer it to proceed.
-    await handleSecurityQuestion();
-
-    // At this point, we're at the password entering stage of the login process
-    await handlePasswordForm();
+    //await handleSecurityQuestion();
+    
+    // If 2-factor authentification is requeste, handle it.
+    await handle2FactorAuthentification();
 
     // At this point, we're successfully connected and on the accounts summary page.
     // Gather information about every account
@@ -76,35 +130,74 @@ async function handleInitialLogin() {
         verbose('The user\'s code is requested: entering it.');
 
         let userCodeInput = await page.$('input[name="codeUtilisateur"]');
-
+        
         if (!userCodeInput) {
             await endWithError('No user code input on this interface.');
         }
 
         await userCodeInput.type(accountInfo.authentication.userCode, { delay: 50 });
+        delay(1000);
+        verbose('Entering the user\'s password...');
+
+        let passwordInput = await page.$('input[name="motDePasse"]');
+        
+        if (!passwordInput) {
+            await endWithError('No password input on this interface.');
+        }
+
+        await passwordInput.type(accountInfo.authentication.password, { delay: 50 });
+        let test = await page.$('button[type="submit"]');
+
+        if (!test) {
+            await endWithError('Submit button issue');
+        }
+
         return await Promise.all([
-            userCodeInput.press('Enter'),
-            page.waitForSelector('#champsReponse, input[name="motDePasse"]', { timeout: 30000 }),
+            passwordInput.press('Enter'),
+            page.waitForNavigation(),
         ]);
+
     }
 }
 
 async function handleSecurityQuestion() {
+    verbose("Handling security question 2FA");
     status = 'handleSecurityQuestion';
 
-    let securityQuestionWrapper = await page.$('#champsReponse');
+    let buttonOtherMethod = await page.waitForSelector("choix-facteur > form > div > dsd-button:nth-child(2) > div > button");
+
+    await Promise.all([
+        buttonOtherMethod.click(),
+        page.waitForSelector("input[name='groupeTuileChoixFacteur']", { waitUntil: "networkidle0", timeout: 30000 }),
+    ]);
+
+    let radioButtonQuestion = await page.waitForSelector('dsd-select-tile:nth-child(3) > div > div > div > div.dsd-select-tile-trigger-container');
+   
+    await Promise.all([
+        radioButtonQuestion.click(),
+    ]);
+
+    let buttonSubmit = await page.waitForSelector("button[type='submit']");
+
+    await Promise.all([
+        buttonSubmit.click(),
+        page.waitForSelector('label[for="reponseQuestionSecurite"]'),
+    ]);
+
+    let securityQuestionWrapper = await page.$('input[name="reponseQuestionSecurite"]');
     if (securityQuestionWrapper) {
         verbose('The answer to security question is requested.');
 
-        let questionWrapper = await page.$('label[for="valeurReponse"]');
-        let question = (await (await (await questionWrapper.$('b')).getProperty('textContent')).jsonValue()).trim();
-        let answerInput = await page.$('input[name="valeurReponse"]');
+        let questionWrapper = await page.$('label[for="reponseQuestionSecurite"]');
+        //let question = (await (await (await questionWrapper.$('b')).getProperty('textContent')).jsonValue()).trim();
+        let question = (await  page.evaluate(el => el.textContent, questionWrapper)).trim();
+        let answerInput = await page.$('input[name="reponseQuestionSecurite"]');
         let answer = null;
 
         if (question in accountInfo.authentication.securityQuestions) {
             answer = accountInfo.authentication.securityQuestions[question];
         }
-
+        
         if (!answer) {
             await endWithError('Unknown security question: ' + question);
         }
@@ -112,53 +205,94 @@ async function handleSecurityQuestion() {
         verbose('Ah, this is an easy one! I got this...');
         await answerInput.type(answer, { delay: 50 });
 
+        buttonSubmit = await page.waitForSelector("button[type='submit']");
+
         return await Promise.all([
-            answerInput.press('Enter'),
-            page.waitForSelector('input[name="motDePasse"]', { timeout: 30000 }),
+            buttonSubmit.click(),
+            page.waitForSelector('#produitCompte0', { timeout: 30000 }),
         ]);
     }
 
     return;
 }
 
-async function handlePasswordForm() {
-    status = 'handlePasswordForm';
-    verbose('Entering the user\'s password...');
+async function handle2FATexto() {
+    verbose("Handling text message 2FA");
+    status = 'handleTextMsg2FA';
 
-    let passwordInput = await page.$('input[name="motDePasse"]');
-    await passwordInput.type(accountInfo.authentication.password, { delay: 50 });
+    let radio = await page.waitForSelector('div.dsd-fieldset-group-wrapper > div > dsd-select-tile:nth-child(2) > div > div > div > div.dsd-select-tile-text-container > label > span');        
+    radio.click();
 
-    return await Promise.all([
-        passwordInput.press('Enter'),
-        page.waitForSelector('#produitCompte0', { timeout: 30000 }),
+    let buttonContinuer = await page.waitForSelector('button[type=submit]');
+
+    await Promise.all([
+        buttonContinuer.click(),
+        page.waitForSelector('input[name=codeSecurite]'),
     ]);
+
+    let securityCode = prompt("Enter security code: ")
+
+    let inputSecurityCode = await page.$('input[name=codeSecurite]');
+
+    if(inputSecurityCode) {
+        await inputSecurityCode.type(securityCode, { delay: 50 });
+        buttonContinuer= await page.waitForSelector('button[type=submit]');
+
+        return await Promise.all([
+            buttonContinuer.click(),
+            page.waitForSelector('#produitCompte0', { timeout: 30000 }),
+        ]);
+    }
+    return;
+}
+
+async function handle2FactorAuthentification() {
+    status = 'handle2FactorAuthentification';
+
+    let twoFactorPrompt = await page.$x("//title[contains(.,'Validation en 2&nbsp;étapes')]");
+    
+    if (twoFactorPrompt) {
+        verbose('Handling 2-factor authentification');
+        
+        //await page.waitForNavigation({
+        //    waitUntil: 'networkidle0',
+        //});
+
+        switch(twoFAMode) {
+            case 'Texto':
+                await handle2FATexto();
+
+            case 'Question':
+                await handleSecurityQuestion();
+
+            default:
+                break;
+        }       
+    }
+
+    return;
 }
 
 async function fetchAcountsInformation() {
     status = 'fetchAcountsInformation';
     verbose('Login successful!');
     verbose('Fetching the accounts information...');
+    let accountNodes = await page.$$('.carte-produit');
 
-    let accountNodes = await page.$$('.produit.compte, .produit.financement');
-
+    //await page.waitForNavigation({
+    //    waitUntil: 'networkidle0',
+    //    timeout: 60000,
+    //});      
+    //delay(1000);
     for (const accountNode of accountNodes) {
-        let name = await getTextContentForSelector('.titre-produit', accountNode);
-        let number = name.split(' ')[0];
+        
+        await page.waitForSelector('.titre-produit .no', accountNode);
+        let name = await getTextContentForSelector('.titre-produit .nom', accountNode);
+        //let name = await accountNode.$('.titre-produit .nom').textContent;
+        let number = await getTextContentForSelector('.titre-produit .no', accountNode);
         let type = (await (await accountNode.getProperty('className')).jsonValue()).indexOf('financement') != -1 ? 'credit' : 'debit';
         let amount = parseFloat((await getTextContentForSelector('.montant', accountNode)).replace(',', '.').replace(/[^\d.]/g, ''));
-        let description = '';
-
-        for (const descriptionNode of (await accountNode.$$('.lien-detail + p > span'))) {
-            let text = await getTextContent(descriptionNode);
-
-            if (text) {
-                description += (description.length ? ' ' : '') + text;
-            }
-        }
-
-        if (isNaN(amount)) {
-            await endWithError("One of the accounts amount is NaN.");
-        }
+        let description = await getTextContentForSelector('.titre-produit > p', accountNode);
 
         accounts[number] = {
             type: type,
@@ -167,6 +301,12 @@ async function fetchAcountsInformation() {
             description: description,
             amount: amount
         };
+        verbose(type);
+        verbose(name);
+        verbose(number);
+        verbose(description);
+        verbose(amount);
+        verbose('\n');
     }
 
     verbose('Accounts information fetched successfully!');
