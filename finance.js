@@ -26,11 +26,11 @@ function delay(time) {
     });
  }
 
-//(async () => {
-async function mainFo(){
+(async () => {
+//async function mainFo(){
     const browser = await puppeteer.launch({
         args: ['--user-agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'],
-        headless: true,
+        headless: false,
         });
     page = await browser.newPage();
 
@@ -84,8 +84,8 @@ async function mainFo(){
     }
 
     await browser.close();
-//})();
-}
+})();
+//}
 
 async function handleCookiesPrompt() {
     const [acceptCookiesButton] = await page.$x("//button[contains(., 'Tout accepter')]");
