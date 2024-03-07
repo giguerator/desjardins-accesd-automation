@@ -116,24 +116,23 @@ class desjardins(institution):
             else:
                 name = accountNode.locator('.titre-produit .nom').text_content()
             
-            #let type = (await (await accountNode.getProperty('className')).jsonValue()).indexOf('financement') != -1 ? 'credit' : 'debit';
             try: 
-                expect(accountNode.locator("..")).to_have_id(re.compile("produitCompte[0-9]+"), timeout=100)
+                expect(accountNode.locator("../..")).to_have_id(re.compile("produitCompte[0-9]+"), timeout=100)
                 type = "débit"
             except:
                 try: 
-                    expect(accountNode.locator("..")).to_have_id(re.compile("produitCartesPretsMarges[0-9]+"), timeout=100)
+                    expect(accountNode.locator("../..")).to_have_id(re.compile("produitCartesPretsMarges[0-9]+"), timeout=100)
                     type = "crédit"
                 except:
                     try: 
-                        expect(accountNode.locator("..")).to_have_id(re.compile("detailEpargnePlacement.+"), timeout=100)
+                        expect(accountNode.locator("../..")).to_have_id(re.compile("detailEpargnePlacement.+"), timeout=100)
                         type = "débit"
                     except:
                         type = "non disponible"
 
             self.accounts[number]={}
             self.accounts[number]["type"] = type
-            self.accounts[number]["name"] = name + " " + re.sub("^[^ ]+ ?","",number_type).strip()
+            self.accounts[number]["name"] = name + " - " + re.sub("^[^ ]+ ?","",number_type).strip()
             self.accounts[number]["description"] = description
             self.accounts[number]["amount"] = (accountNode.locator('.montant').text_content()).replace(",",".").replace("\xa0","").replace("$","")
             print(number + ": " + json.dumps(self.accounts[number],ensure_ascii=False).encode("utf-8").decode())
