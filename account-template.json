@@ -7,52 +7,5 @@
             "Quel est le numéro civique de l'endroit où j'habitais à 5 ans?": "555",
             "Quel est le nom de la ville/municipalité de l'école que je fréquentais à ma deuxième année du secondaire?": "Saint-Émile"
         }
-    },
-
-    "savingsAccount": "123456-ET1",
-    "creditCardAccount": "VISA",
-    "paymentsPaddingPercentage": 0.1,
-    "weeklyIncome": 750.00,
-    "desiredSavingsMonths": 6,
-    "longTermSavingsIncrement": 1000,
-
-    "accounts": {
-        "123456-EOP": {
-            "maximumAmount": 200.00,
-            "minimumAmount": 100.00
-        },
-        "654321-EOP": {
-            "maximumAmount": 100.00,
-            "minimumAmount": 100.00
-        }
-    },
-
-    "monthlyPayments": {
-        "1": [
-            {
-                "account": "123456-EOP",
-                "amount": 750.00,
-                "description": "Rent"
-            },
-            {
-                "account": "123456-EOP",
-                "amount": 100.00,
-                "description": "Student loans"
-            }
-        ],
-        "22": [
-            {
-                "account": "654321-EOP",
-                "amount": 80.00,
-                "description": "Car insurance"
-            }
-        ],
-        "27": [
-            {
-                "account": "654321-EOP",
-                "amount": 30.00,
-                "description": "Home insurance"
-            }
-        ]
     }
 }
