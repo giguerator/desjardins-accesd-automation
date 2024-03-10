@@ -3,7 +3,7 @@
  This will ensure that the funds for upcoming payments are in the account before the start of the day.
 */
 
-const accountInfo = require('../../account.json');
+const accountInfo = require('../../../account.json');
 const puppeteer = require('puppeteer-extra');
 const args = require('minimist')(process.argv.slice(2))
 const prompt = require("prompt-sync")();

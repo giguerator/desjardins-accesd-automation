@@ -138,7 +138,7 @@ class desjardins(institution):
             self.accounts[number]["type"] = type
             self.accounts[number]["name"] = name + " - " + re.sub("^[^ ]+ ?","",number_type).strip()
             self.accounts[number]["description"] = description
-            self.accounts[number]["amount"] = (accountNode.locator('.montant').text_content()).replace(",",".").replace("\xa0","").replace("$","")
+            self.accounts[number]["balance"] = (accountNode.locator('.montant').text_content()).replace(",",".").replace("\xa0","").replace("$","")
             print(number + ": " + json.dumps(self.accounts[number],ensure_ascii=False).encode("utf-8").decode())
 
         if self.accounts is not None:
