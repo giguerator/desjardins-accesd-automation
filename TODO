@@ -1,0 +1,8 @@
+Update model to matchg desjardins
+Populate DB with desjardins account
+Add login/account management to frontend
+Add account balance view page
+Add another supported institution
+Add transaction download from desjardins
+Retrieve desjardins data via server
+Add interface with menu like admin to regular frontend
